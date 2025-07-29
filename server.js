@@ -1,5 +1,5 @@
 const express = require('express');
-const stripe = require('stripe')('sk_test_51RoZPiDglk3LopJM5IdpafNQHBaTq4bQgPrdD4vWYKV0YZcNvPYqgdbrVOteHaDo4F4sl7vxh5lwTLgDqUifUx2W00wGdH2yEV');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); // 🔄 CAMBIO: Usar variable de entorno
 const cors = require('cors');
 
 const app = express();
@@ -24,6 +24,14 @@ app.post('/create-payment-intent', async (req, res) => {
   try {
     console.log('📨 Recibida solicitud de Payment Intent');
     console.log('📦 Body:', req.body);
+    
+    // 🔄 CAMBIO: Verificar que las claves de Stripe estén configuradas
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('❌ STRIPE_SECRET_KEY no está configurada');
+      return res.status(500).json({
+        error: 'Configuración de Stripe incompleta'
+      });
+    }
     
     const { amount, currency = 'usd' } = req.body;
     
@@ -53,10 +61,10 @@ app.post('/create-payment-intent', async (req, res) => {
     
     console.log(`✅ Payment Intent creado: ${paymentIntent.id}`);
     
-    // Responder con el client secret y la clave publicable
+    // 🔄 CAMBIO: Usar variable de entorno para la clave publicable
     const response = {
       clientSecret: paymentIntent.client_secret,
-      publishableKey: 'pk_test_51RoZPiDglk3LopJMDPWzOSQC5xURnQTozfbVjI0podoCuwOHG3fwaeJUsq4btGWfI9GXSezcN23Itp7oMALLc8yd00xeXVeCKO',
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_51RoZPiDglk3LopJMDPWzOSQC5xURnQTozfbVjI0podoCuwOHG3fwaeJUsq4btGWfI9GXSezcN23Itp7oMALLc8yd00xeXVeCKO',
       paymentIntentId: paymentIntent.id
     };
     
@@ -78,6 +86,7 @@ app.get('/', (req, res) => {
     message: '🚀 CompuStore Stripe Server funcionando correctamente!',
     status: 'OK',
     timestamp: new Date().toISOString(),
+    stripeConfigured: !!process.env.STRIPE_SECRET_KEY, // 🔄 NUEVO: Verificar configuración
     endpoints: {
       'POST /create-payment-intent': 'Crear intención de pago',
       'GET /health': 'Verificar estado del servidor'
@@ -91,7 +100,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'OK',
     message: 'Servidor funcionando correctamente',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    stripeConfigured: !!process.env.STRIPE_SECRET_KEY // 🔄 NUEVO: Verificar configuración
   });
 });
 
@@ -114,7 +124,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.log(`🚀 Servidor CompuStore ejecutándose en puerto ${PORT}`);
     console.log(`📡 Endpoint principal: http://localhost:${PORT}/create-payment-intent`);
     console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-    console.log(`💳 Stripe configurado correctamente`);
+    console.log(`💳 Stripe configurado: ${!!process.env.STRIPE_SECRET_KEY}`);
   });
 }
 
